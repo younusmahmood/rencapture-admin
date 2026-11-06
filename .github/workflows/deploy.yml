@@ -1,0 +1,114 @@
+name: Deploy admin app
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Existing image tag to roll back to (leave blank to build HEAD)'
+        required: false
+
+concurrency:
+  group: deploy-admin
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+
+jobs:
+  deploy:
+    name: Build, push, deploy
+    runs-on: ubuntu-latest
+    # Require a human approval on this environment before the account that
+    # can provision or disable any clinic gets a new build in production.
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Assume the deploy role
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-deploy-${{ github.run_id }}
+
+      - name: Log in to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build and push image
+        if: ${{ !inputs.image_tag }}
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+          build-args: |
+            CONVEX_URL=${{ vars.CONVEX_URL }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Retag an existing image (rollback)
+        if: ${{ inputs.image_tag }}
+        run: |
+          set -euo pipefail
+          MANIFEST=$(aws ecr batch-get-image \
+            --repository-name "$ECR_REPOSITORY" \
+            --image-ids imageTag="${{ inputs.image_tag }}" \
+            --query 'images[0].imageManifest' --output text)
+          aws ecr put-image \
+            --repository-name "$ECR_REPOSITORY" \
+            --image-tag latest \
+            --image-manifest "$MANIFEST"
+
+      - name: Trigger App Runner deployment
+        run: |
+          set -euo pipefail
+          OP=$(aws apprunner start-deployment \
+            --service-arn "${{ vars.APPRUNNER_SERVICE_ARN }}" \
+            --query 'OperationId' --output text)
+          echo "Started operation $OP"
+
+      - name: Wait for the service to come back healthy
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 60); do
+            STATUS=$(aws apprunner describe-service \
+              --service-arn "${{ vars.APPRUNNER_SERVICE_ARN }}" \
+              --query 'Service.Status' --output text)
+            echo "attempt $i: $STATUS"
+            case "$STATUS" in
+              RUNNING) exit 0 ;;
+              CREATE_FAILED|DELETE_FAILED) echo "::error::Service is $STATUS"; exit 1 ;;
+            esac
+            sleep 10
+          done
+          echo "::error::Timed out waiting for App Runner to return to RUNNING"
+          exit 1
+
+      - name: Smoke test the deployed service
+        run: |
+          set -euo pipefail
+          BASE="${{ vars.ADMIN_URL }}"
+          echo "→ /healthz"
+          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors "$BASE/healthz" | grep -q '"ok"'
+          echo "→ security headers"
+          HEADERS=$(curl -fsSI "$BASE/clinics" || true)
+          for H in "strict-transport-security" "content-security-policy" "referrer-policy: no-referrer" "x-robots-tag"; do
+            echo "$HEADERS" | tr 'A-Z' 'a-z' | grep -q "$H" \
+              || { echo "::error::Missing or wrong header: $H"; exit 1; }
+          done
+          echo "→ anonymous /clinics is not reachable"
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/clinics")
+          [ "$CODE" = "307" ] || { echo "::error::Unauthenticated /clinics returned $CODE, expected 307"; exit 1; }

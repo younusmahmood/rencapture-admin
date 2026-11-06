@@ -1,0 +1,54 @@
+node_modules
+.DS_Store
+dist
+dist-ssr
+*.local
+.nitro
+.tanstack
+.wrangler
+.output
+.vinxi
+__unconfig*
+
+# env files — everything except the checked-in template. This is where
+# SESSION_SECRET and the production CONVEX_URL live.
+.env*
+!.env.example
+
+# build/type-check artifacts
+*.tsbuildinfo
+coverage/
+
+# certs / keys
+*.pem
+*.key
+*.p8
+*.p12
+
+# cloud credentials
+credentials.json
+*service-account*.json
+*service_account*.json
+
+# logs can contain request paths with clinic and member ids
+*.log
+
+# data exports: Convex exports, databases, spreadsheets
+*.zip
+*.sqlite
+*.sqlite3
+*.db
+*.csv
+*.xlsx
+*.xls
+
+# local smoke-test session cookies
+cookies.txt
+*.cookiejar
+cookie.jar
+
+# Per-machine Claude Code permissions
+.claude/settings.local.json
+
+# editors
+.idea/

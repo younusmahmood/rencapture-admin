@@ -1,0 +1,115 @@
+@import "tailwindcss";
+
+/**
+ * A deliberately plain theme, distinct from both the mobile app's Porcelain/
+ * Onyx and the console's matching palette. This is an internal single-operator
+ * tool, not a customer-facing surface — a neutral slate/indigo system with the
+ * system font stack keeps it visually unmistakable as "the ops tool", and
+ * skips a font-loading step nothing here needs.
+ */
+:root {
+  --app-bg: #f8fafc;
+  --app-elevated: #ffffff;
+  --app-surface: #ffffff;
+  --app-surface-alt: #f1f5f9;
+  --app-border: #e2e8f0;
+  --app-border-strong: #cbd5e1;
+  --app-text: #0f172a;
+  --app-2: #475569;
+  --app-3: #94a3b8;
+  --app-accent: #4f46e5;
+  --app-accent-soft: #eef2ff;
+  --app-on-accent: #ffffff;
+  --app-danger: #b91c1c;
+  --app-danger-soft: #fee2e2;
+  --app-success: #15803d;
+  --app-success-soft: #dcfce7;
+  --app-amber: #b45309;
+  --app-amber-soft: #fef3c7;
+  --app-shadow: rgba(15, 23, 42, 0.12);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --app-bg: #0b0f19;
+    --app-elevated: #131a2a;
+    --app-surface: #131a2a;
+    --app-surface-alt: #1b2436;
+    --app-border: #263045;
+    --app-border-strong: #34405a;
+    --app-text: #f1f5f9;
+    --app-2: #94a3b8;
+    --app-3: #64748b;
+    --app-accent: #818cf8;
+    --app-accent-soft: #1e2547;
+    --app-on-accent: #0b0f19;
+    --app-danger: #f87171;
+    --app-danger-soft: #3f1414;
+    --app-success: #4ade80;
+    --app-success-soft: #0f2e1c;
+    --app-amber: #fbbf24;
+    --app-amber-soft: #3a2a0a;
+    --app-shadow: rgba(0, 0, 0, 0.45);
+  }
+}
+
+@theme inline {
+  --color-app-bg: var(--app-bg);
+  --color-app-elevated: var(--app-elevated);
+  --color-app-surface: var(--app-surface);
+  --color-app-surface-alt: var(--app-surface-alt);
+  --color-app-border: var(--app-border);
+  --color-app-border-strong: var(--app-border-strong);
+  --color-app-text: var(--app-text);
+  --color-app-2: var(--app-2);
+  --color-app-3: var(--app-3);
+  --color-app-accent: var(--app-accent);
+  --color-app-accent-soft: var(--app-accent-soft);
+  --color-app-on-accent: var(--app-on-accent);
+  --color-app-danger: var(--app-danger);
+  --color-app-danger-soft: var(--app-danger-soft);
+  --color-app-success: var(--app-success);
+  --color-app-success-soft: var(--app-success-soft);
+  --color-app-amber: var(--app-amber);
+  --color-app-amber-soft: var(--app-amber-soft);
+
+  --font-app: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-app-mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  --ease-smooth: cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+body {
+  margin: 0;
+  background: var(--app-bg);
+  color: var(--app-text);
+  font-family: var(--font-app);
+  -webkit-font-smoothing: antialiased;
+}
+
+.app-mono {
+  font-family: var(--font-app-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Same reasoning as rencapture-web: Tailwind v4 Preflight leaves buttons on
+   the browser default cursor. */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+a[href],
+input[type="checkbox"]:not(:disabled),
+select:not(:disabled) {
+  cursor: pointer;
+}
+button:disabled,
+select:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
